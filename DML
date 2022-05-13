@@ -1,0 +1,191 @@
+DML решения
+
+1.
+Добавить в таблицу PC следующую модель:
+code: 20
+model: 2111
+speed: 950
+ram: 512
+hd: 60
+cd: 52x
+price: 1100
+
+решение:
+INSERT INTO PC (code, model, speed, ram, hd, cd, price)
+VALUES (
+20,
+2111,
+950,
+512,
+60,
+'52x',
+1100 )
+
+2.
+Добавить в таблицу Product следующие продукты производителя Z:
+принтер модели 4003, ПК модели 4001 и блокнот модели 4002
+
+решение:
+INSERT INTO Product (maker, model, type)
+VALUES 
+('Z', 4003, 'Printer'),
+('Z', 4001, 'PC'),
+('Z', 4002, 'Laptop')
+
+3.
+Добавить в таблицу PC модель 4444 с кодом 22, имеющую скорость процессора 1200 и цену 1350.
+
+решение:
+INSERT INTO PC (code, model, speed, price) 
+VALUES (22, 4444, 1200, 1350)
+
+4.
+Для каждой группы блокнотов с одинаковым номером модели добавить запись в таблицу PC со следующими характеристиками:
+код: минимальный код блокнота в группе +20;
+модель: номер модели блокнота +1000;
+скорость: максимальная скорость блокнота в группе;
+ram: максимальный объем ram блокнота в группе *2;
+hd: максимальный объем hd блокнота в группе *2;
+cd: значение по умолчанию;
+цена: максимальная цена блокнота в группе, уменьшенная в 1,5 раза.
+Замечание. Считать номер модели числом.
+
+решение:
+INSERT INTO PC (code, model, speed, ram, hd, price) 
+SELECT MIN(code) + 20, model + 1000, MAX(speed), MAX(ram) * 2, MAX(hd) * 2, MAX(price) / 1.5
+FROM Laptop 
+GROUP BY model
+
+5.
+Удалить из таблицы PC компьютеры, имеющие минимальный объем диска или памяти.
+
+решение:
+DELETE FROM PC
+WHERE hd = (SELECT MIN(hd) FROM PC) OR ram = (SELECT MIN(ram) FROM PC)
+
+6.
+Удалить все блокноты, выпускаемые производителями, которые не выпускают принтеры.
+
+решение:
+DELETE FROM Laptop
+FROM Laptop JOIN Product
+ON Laptop.model = Product.model
+WHERE Product.maker NOT IN (SELECT maker FROM Product WHERE type = 'Printer')
+
+7.
+Производство принтеров производитель A передал производителю Z. Выполнить соответствующее изменение.
+
+решение:
+UPDATE Product
+SET maker = 'Z'
+WHERE maker = 'A' AND type = 'Printer'
+
+8.
+Удалите из таблицы Ships все корабли, потопленные в сражениях.
+
+решение:
+DELETE FROM Ships 
+FROM Ships JOIN Outcomes ON Ships.name = Outcomes.ship
+WHERE Outcomes.result = 'sunk'
+
+9.
+Измените данные в таблице Classes так, чтобы калибры орудий измерялись в
+сантиметрах (1 дюйм=2,5см), а водоизмещение в метрических тоннах (1
+метрическая тонна = 1,1 тонны). Водоизмещение вычислить с точностью до
+целых.
+
+решение:
+UPDATE Classes
+SET bore = bore * 2.5,
+displacement = ROUND(displacement / 1.1, 0)
+
+10.
+Добавить в таблицу PC те модели ПК из Product, которые отсутствуют в таблице PC.
+При этом модели должны иметь следующие характеристики:
+1. Код равен номеру модели плюс максимальный код, который был до вставки.
+2. Скорость, объем памяти и диска, а также скорость CD должны иметь максимальные характеристики среди всех имеющихся в таблице PC.
+3. Цена должна быть средней среди всех ПК, имевшихся в таблице PC до вставки.
+
+решение:
+INSERT INTO PC 
+SELECT 
+Product.model + MAX(PC.code), 
+Product.model, 
+MAX(PC.speed), 
+MAX(PC.ram), 
+MAX(PC.hd), 
+CAST(MAX(CAST(REPLACE(PC.cd,'x','')AS int))AS varchar)+'x', 
+AVG(PC.price) 
+FROM Product JOIN PC ON Product.type = 'PC' 
+WHERE Product.model NOT IN (SELECT model FROM PC) 
+GROUP BY Product.model
+
+11.
+Для каждой группы блокнотов с одинаковым номером модели добавить запись в таблицу PC со следующими характеристиками:
+код: минимальный код блокнота в группе +20;
+модель: номер модели блокнота +1000;
+скорость: максимальная скорость блокнота в группе;
+ram: максимальный объем ram блокнота в группе *2;
+hd: максимальный объем hd блокнота в группе *2;
+cd: cd c максимальной скоростью среди всех ПК;
+цена: максимальная цена блокнота в группе, уменьшенная в 1,5 раза
+
+решение:
+INSERT INTO PC
+SELECT
+MIN(code) + 20, 
+CAST(model AS int) + 1000, 
+MAX(speed), 
+MAX(ram) * 2, 
+MAX(hd) * 2, 
+(SELECT CONCAT(MAX(CAST(REPLACE(cd, 'x', '') as INT)), 'x') from PC), 
+MAX(price) / 1.5
+FROM Laptop
+GROUP BY model
+
+12.
+Добавьте один дюйм к размеру экрана каждого блокнота,
+выпущенного производителями E и B, и уменьшите его цену на $100.
+
+решение:
+UPDATE Laptop
+SET screen = screen + 1,
+price = price - 100
+FROM Laptop JOIN Product
+ON Laptop.model = Product.model
+WHERE Product.maker IN ('E','B')
+
+13.
+Ввести в базу данных информацию о том, что корабль Rodney был потоплен в битве, произошедшей 25/10/1944, а корабль Nelson поврежден - 28/01/1945.
+Замечание: считать, что дата битвы уникальна в таблице Battles.
+
+решение:
+INSERT INTO Outcomes (ship, battle, result) 
+VALUES
+('Rodney', (SELECT name FROM Battles WHERE date = '1944-10-25'), 'sunk'),
+('Nelson', (SELECT name FROM Battles WHERE date = '1945-01-28'), 'damaged')
+
+14.
+Удалите классы, имеющие в базе данных менее трех кораблей (учесть корабли из Outcomes).
+
+решение:
+DELETE FROM classes
+WHERE class NOT IN
+(SELECT class FROM (SELECT class, name FROM ships
+UNION
+SELECT class, ship FROM outcomes JOIN ships ON class = ship
+UNION
+SELECT class, ship FROM outcomes JOIN classes ON class = ship) as result
+GROUP BY class
+HAVING COUNT(name) >= 3 )
+
+15.
+Из каждой группы ПК с одинаковым номером модели в таблице PC удалить все строки кроме строки с наибольшим для этой группы кодом (столбец code).
+
+решение:
+DELETE FROM PC
+WHERE code NOT IN (
+SELECT MAX(code)
+FROM PC
+GROUP BY model
+)
